@@ -139,8 +139,7 @@ impl FeDevice {
         self.api_version = unsafe { cmdseq[0].u.data as u16 };
 
         // Suppoerted delivery systems
-
-        let u_buffer = unsafe { &cmdseq[1].u.buffer };
+        let u_buffer = unsafe { cmdseq[1].u.buffer };
         let u_buffer_len = ::std::cmp::min(u_buffer.len as usize, u_buffer.data.len());
         u_buffer.data[..u_buffer_len]
             .iter()

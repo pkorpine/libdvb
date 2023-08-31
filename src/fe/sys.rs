@@ -588,43 +588,53 @@ impl fmt::Debug for DtvProperty {
         match self.cmd {
             DTV_FREQUENCY => {
                 s.field(FIELD_CMD, &"DTV_FREQUENCY");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_MODULATION => {
                 s.field(FIELD_CMD, &"DTV_MODULATION");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_BANDWIDTH_HZ => {
                 s.field(FIELD_CMD, &"DTV_BANDWIDTH_HZ");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_INVERSION => {
                 s.field(FIELD_CMD, &"DTV_INVERSION");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_SYMBOL_RATE => {
                 s.field(FIELD_CMD, &"DTV_SYMBOL_RATE");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_INNER_FEC => {
                 s.field(FIELD_CMD, &"DTV_INNER_FEC");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_PILOT => {
                 s.field(FIELD_CMD, &"DTV_PILOT");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_ROLLOFF => {
                 s.field(FIELD_CMD, &"DTV_ROLLOFF");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_DELIVERY_SYSTEM => {
                 s.field(FIELD_CMD, &"DTV_DELIVERY_SYSTEM");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
             DTV_API_VERSION => {
                 s.field(FIELD_CMD, &"DTV_API_VERSION");
-                s.field(FIELD_DATA, unsafe { &self.u.data });
+                let copy = unsafe { self.u.data };
+                s.field(FIELD_DATA, &copy);
             }
 
             /* Quality parameters */
