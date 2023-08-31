@@ -1,66 +1,33 @@
 use {
-    std::{
-        os::unix::io::AsRawFd,
-    },
-
-    anyhow::{
-        bail,
-        Context,
-        Result,
-    },
-
+    anyhow::{bail, Context, Result},
+    libdvb::CaDevice,
     nix::{
-        poll::{
-            PollFd,
-            PollFlags,
-            poll,
-        },
+        poll::{poll, PollFd, PollFlags},
         sys::{
-            timerfd::{
-                ClockId,
-                Expiration,
-                TimerFd,
-                TimerFlags,
-                TimerSetTimeFlags,
-            },
-            time::{
-                TimeSpec,
-                TimeValLike,
-            },
+            time::{TimeSpec, TimeValLike},
+            timerfd::{ClockId, Expiration, TimerFd, TimerFlags, TimerSetTimeFlags},
         },
     },
-
-    libdvb::{
-        CaDevice,
-    },
+    std::os::unix::io::AsRawFd,
 };
-
 
 fn start_ca(adapter: u32, device: u32) -> Result<()> {
     // let mut ca = CaDevice::open(path, 0)?;
 
-    let timer = TimerFd::new(
-        ClockId::CLOCK_MONOTONIC,
-        TimerFlags::all()
-    )?;
+    let timer = TimerFd::new(ClockId::CLOCK_MONOTONIC, TimerFlags::all())?;
 
     timer.set(
-        Expiration::Interval(
-            TimeSpec::milliseconds(100)
-        ),
-        TimerSetTimeFlags::empty()
+        Expiration::Interval(TimeSpec::milliseconds(100)),
+        TimerSetTimeFlags::empty(),
     )?;
 
     let mut pool: Vec<PollFd> = Vec::new();
 
-    pool.push(PollFd::new(
-        timer.as_raw_fd(),
-        PollFlags::POLLIN
-    ));
+    pool.push(PollFd::new(timer.as_raw_fd(), PollFlags::POLLIN));
 
     let instant = std::time::Instant::now();
 
-    for _ in 0 .. 10 {
+    for _ in 0..10 {
         let mut total = poll(&mut pool, -1)?;
         // less than 0 not needed to check we got error in this case
         // equal to 0 not needed to check we have no timeout
@@ -97,7 +64,6 @@ fn start_ca(adapter: u32, device: u32) -> Result<()> {
 
     Ok(())
 }
-
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);

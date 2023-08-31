@@ -1,13 +1,7 @@
 use {
-    anyhow::{
-        bail,
-        Context,
-        Result,
-    },
-
+    anyhow::{bail, Context, Result},
     libdvb::NetDevice,
 };
-
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);

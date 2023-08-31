@@ -1,16 +1,7 @@
 use {
-    anyhow::{
-        bail,
-        Context,
-        Result,
-    },
-
-    libdvb::{
-        FeDevice,
-        FeStatus,
-    },
+    anyhow::{bail, Context, Result},
+    libdvb::{FeDevice, FeStatus},
 };
-
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);

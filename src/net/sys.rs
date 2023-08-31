@@ -1,8 +1,4 @@
-
-pub use {
-    feed_type::*,
-};
-
+pub use feed_type::*;
 
 mod feed_type {
     /// Multi Protocol Encapsulation (MPE) encoding
@@ -10,7 +6,6 @@ mod feed_type {
     /// Ultra Lightweight Encapsulation (ULE) encoding
     pub const DVB_NET_FEEDTYPE_ULE: u8 = 1;
 }
-
 
 /// Describes a DVB network interface
 /// Configures adapter to decapsulate IP packets from MPEG-TS stream

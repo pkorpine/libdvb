@@ -1,16 +1,8 @@
 use {
-    std::{
-        fmt,
-    },
-
+    super::{sys::*, FeDevice},
     anyhow::Result,
-
-    super::{
-        FeDevice,
-        sys::*,
-    },
+    std::fmt,
 };
-
 
 /// Frontend status
 #[derive(Debug)]
@@ -22,14 +14,12 @@ pub struct FeStatus {
     props: [DtvProperty; 6],
 }
 
-
 const IDX_DELIVERY_SYSTEM: usize = 0;
 const IDX_MODULATION: usize = 1;
 const IDX_SIGNAL_STRENGTH: usize = 2;
 const IDX_SNR: usize = 3;
 const IDX_BER: usize = 4;
 const IDX_UNC: usize = 5;
-
 
 impl Default for FeStatus {
     fn default() -> FeStatus {
@@ -52,7 +42,6 @@ impl Default for FeStatus {
         }
     }
 }
-
 
 /// Returns an object that implements `Display` for different verbosity levels
 ///
@@ -91,7 +80,11 @@ impl fmt::Display for FeStatus {
         }
 
         if self.status & FE_HAS_LOCK != 0 {
-            write!(f, "LOCK {}", DeliverySystemDisplay(self.get_delivery_system()))?;
+            write!(
+                f,
+                "LOCK {}",
+                DeliverySystemDisplay(self.get_delivery_system())
+            )?;
         } else {
             write!(f, "NO-LOCK 0x{:02X}", self.status)?;
         }
@@ -140,15 +133,18 @@ impl fmt::Display for FeStatus {
     }
 }
 
-
 impl FeStatus {
     /// Returns current delivery system
     #[inline]
-    pub fn get_delivery_system(&self) -> u32 { unsafe { self.props[IDX_DELIVERY_SYSTEM].u.data } }
+    pub fn get_delivery_system(&self) -> u32 {
+        unsafe { self.props[IDX_DELIVERY_SYSTEM].u.data }
+    }
 
     /// Returns current modulation
     #[inline]
-    pub fn get_modulation(&self) -> u32 { unsafe { self.props[IDX_MODULATION].u.data } }
+    pub fn get_modulation(&self) -> u32 {
+        unsafe { self.props[IDX_MODULATION].u.data }
+    }
 
     /// Returns Signal Strength in dBm
     pub fn get_signal_strength_decibel(&self) -> Option<f64> {
@@ -213,7 +209,7 @@ impl FeStatus {
     fn normalize_signal_strength(&mut self) -> Result<()> {
         let mut stats = unsafe { &mut self.props[IDX_SIGNAL_STRENGTH].u.st };
 
-        for i in usize::from(stats.len) .. 2 {
+        for i in usize::from(stats.len)..2 {
             stats.stat[i].scale = FE_SCALE_NOT_AVAILABLE;
             stats.stat[i].value = 0;
         }
@@ -222,11 +218,11 @@ impl FeStatus {
 
         if stats.stat[0].scale == FE_SCALE_RELATIVE {
             stats.stat.swap(0, 1);
-            return Ok(())
+            return Ok(());
         }
 
         if stats.stat[1].scale == FE_SCALE_RELATIVE || (self.status & FE_HAS_SIGNAL) == 0 {
-            return Ok(())
+            return Ok(());
         }
 
         // calculate relative value
@@ -258,7 +254,7 @@ impl FeStatus {
 
         let mut stats = unsafe { &mut self.props[IDX_SNR].u.st };
 
-        for i in usize::from(stats.len) .. 2 {
+        for i in usize::from(stats.len)..2 {
             stats.stat[i].scale = FE_SCALE_NOT_AVAILABLE;
             stats.stat[i].value = 0;
         }
@@ -267,34 +263,27 @@ impl FeStatus {
 
         if stats.stat[0].scale == FE_SCALE_RELATIVE {
             stats.stat.swap(0, 1);
-            return Ok(())
+            return Ok(());
         }
 
         if stats.stat[1].scale == FE_SCALE_RELATIVE || (self.status & FE_HAS_CARRIER) == 0 {
-            return Ok(())
+            return Ok(());
         }
 
         // calculate relative value
 
         if stats.stat[0].scale == FE_SCALE_DECIBEL {
             let hi = match delivery_system {
-                SYS_DVBS |
-                SYS_DVBS2 => 15000,
+                SYS_DVBS | SYS_DVBS2 => 15000,
 
-                SYS_DVBC_ANNEX_A |
-                SYS_DVBC_ANNEX_B |
-                SYS_DVBC_ANNEX_C |
-                SYS_DVBC2 => 28000,
+                SYS_DVBC_ANNEX_A | SYS_DVBC_ANNEX_B | SYS_DVBC_ANNEX_C | SYS_DVBC2 => 28000,
 
-                SYS_DVBT |
-                SYS_DVBT2 => 19000,
+                SYS_DVBT | SYS_DVBT2 => 19000,
 
-                SYS_ATSC => {
-                    match modulation {
-                        VSB_8 | VSB_16 => 19000,
-                        _ => 28000,
-                    }
-                }
+                SYS_ATSC => match modulation {
+                    VSB_8 | VSB_16 => 19000,
+                    _ => 28000,
+                },
 
                 _ => return Ok(()),
             };
@@ -324,7 +313,7 @@ impl FeStatus {
         }
 
         if stats.stat[0].scale == FE_SCALE_COUNTER || (self.status & FE_HAS_LOCK) == 0 {
-            return Ok(())
+            return Ok(());
         }
 
         if let Ok(value) = fe.read_ber() {
@@ -345,7 +334,7 @@ impl FeStatus {
         }
 
         if stats.stat[0].scale == FE_SCALE_COUNTER || (self.status & FE_HAS_LOCK) == 0 {
-            return Ok(())
+            return Ok(());
         }
 
         if let Ok(value) = fe.read_unc() {

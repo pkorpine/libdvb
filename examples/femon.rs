@@ -1,21 +1,8 @@
 use {
-    std::{
-        time::Duration,
-        thread,
-    },
-
-    anyhow::{
-        bail,
-        Context,
-        Result,
-    },
-
-    libdvb::{
-        FeDevice,
-        FeStatus,
-    },
+    anyhow::{bail, Context, Result},
+    libdvb::{FeDevice, FeStatus},
+    std::{thread, time::Duration},
 };
-
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1);

@@ -1,48 +1,23 @@
 mod status;
 pub mod sys;
 
-
 use {
+    anyhow::{Context, Result},
+    nix::{ioctl_read, ioctl_write_int_bad, ioctl_write_ptr, request_code_none},
     std::{
         ffi::CStr,
         fmt,
-        fs::{
-            File,
-            OpenOptions,
-        },
+        fs::{File, OpenOptions},
         ops::Range,
         os::unix::{
-            fs::{
-                OpenOptionsExt,
-                FileTypeExt,
-            },
-            io::{
-                AsRawFd,
-                RawFd,
-            },
+            fs::{FileTypeExt, OpenOptionsExt},
+            io::{AsRawFd, RawFd},
         },
     },
-
-    anyhow::{
-        Context,
-        Result,
-    },
-
-    nix::{
-        ioctl_read,
-        ioctl_write_ptr,
-        ioctl_write_int_bad,
-        request_code_none,
-    },
-
     sys::*,
 };
 
-
-pub use {
-    status::FeStatus,
-};
-
+pub use status::FeStatus;
 
 /// A reference to the frontend device and device information
 #[derive(Debug)]
@@ -61,10 +36,14 @@ pub struct FeDevice {
     caps: u32,
 }
 
-
 impl fmt::Display for FeDevice {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "DVB API: {}.{}", self.api_version >> 8, self.api_version & 0xFF)?;
+        writeln!(
+            f,
+            "DVB API: {}.{}",
+            self.api_version >> 8,
+            self.api_version & 0xFF
+        )?;
         writeln!(f, "Frontend: {}", self.name)?;
 
         write!(f, "Delivery system:")?;
@@ -73,13 +52,19 @@ impl fmt::Display for FeDevice {
         }
         writeln!(f, "")?;
 
-        writeln!(f, "Frequency range: {} .. {}",
+        writeln!(
+            f,
+            "Frequency range: {} .. {}",
             self.frequency_range.start / 1000,
-            self.frequency_range.end / 1000)?;
+            self.frequency_range.end / 1000
+        )?;
 
-        writeln!(f, "Symbolrate range: {} .. {}",
+        writeln!(
+            f,
+            "Symbolrate range: {} .. {}",
             self.symbolrate_range.start / 1000,
-            self.symbolrate_range.end / 1000)?;
+            self.symbolrate_range.end / 1000
+        )?;
 
         write!(f, "Frontend capabilities: 0x{:08x}", self.caps)?;
 
@@ -87,12 +72,12 @@ impl fmt::Display for FeDevice {
     }
 }
 
-
 impl AsRawFd for FeDevice {
     #[inline]
-    fn as_raw_fd(&self) -> RawFd { self.file.as_raw_fd() }
+    fn as_raw_fd(&self) -> RawFd {
+        self.file.as_raw_fd()
+    }
 }
-
 
 impl FeDevice {
     /// Clears frontend settings and event queue
@@ -106,7 +91,7 @@ impl FeDevice {
 
         let mut event = FeEvent::default();
 
-        for _ in 0 .. FE_MAX_EVENT {
+        for _ in 0..FE_MAX_EVENT {
             if self.get_event(&mut event).is_err() {
                 break;
             }
@@ -119,20 +104,24 @@ impl FeDevice {
         let mut feinfo = FeInfo::default();
 
         // FE_GET_INFO
-        ioctl_read!(#[inline] ioctl_call, b'o', 61, FeInfo);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut feinfo as *mut _)
-        }.context("FE: get info")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            61,
+            FeInfo
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut feinfo as *mut _) }.context("FE: get info")?;
 
         if let Some(len) = feinfo.name.iter().position(|&b| b == 0) {
-            let name = unsafe { CStr::from_ptr(feinfo.name[.. len + 1].as_ptr()) };
+            let name = unsafe { CStr::from_ptr(feinfo.name[..len + 1].as_ptr()) };
             if let Ok(name) = name.to_str() {
                 self.name = name.to_owned();
             }
         }
 
-        self.frequency_range = feinfo.frequency_min .. feinfo.frequency_max;
-        self.symbolrate_range = feinfo.symbol_rate_min .. feinfo.symbol_rate_max;
+        self.frequency_range = feinfo.frequency_min..feinfo.frequency_max;
+        self.symbolrate_range = feinfo.symbol_rate_min..feinfo.symbol_rate_max;
 
         self.caps = feinfo.caps;
 
@@ -142,7 +131,8 @@ impl FeDevice {
             DtvProperty::new(DTV_API_VERSION, 0),
             DtvProperty::new(DTV_ENUM_DELSYS, 0),
         ];
-        self.get_properties(&mut cmdseq).context("FE: get api version (deprecated driver)")?;
+        self.get_properties(&mut cmdseq)
+            .context("FE: get api version (deprecated driver)")?;
 
         // DVB API Version
 
@@ -152,7 +142,7 @@ impl FeDevice {
 
         let u_buffer = unsafe { &cmdseq[1].u.buffer };
         let u_buffer_len = ::std::cmp::min(u_buffer.len as usize, u_buffer.data.len());
-        u_buffer.data[.. u_buffer_len]
+        u_buffer.data[..u_buffer_len]
             .iter()
             .for_each(|v| self.delivery_system_list.push(*v as u32));
 
@@ -187,8 +177,8 @@ impl FeDevice {
 
             name: String::default(),
             delivery_system_list: Vec::default(),
-            frequency_range: 0 .. 0,
-            symbolrate_range: 0 .. 0,
+            frequency_range: 0..0,
+            symbolrate_range: 0..0,
             caps: 0,
         };
 
@@ -199,15 +189,13 @@ impl FeDevice {
 
     /// Attempts to open frontend device in read-only mode
     #[inline]
-    pub fn open_ro(adapter: u32, device: u32) -> Result<FeDevice>
-    {
+    pub fn open_ro(adapter: u32, device: u32) -> Result<FeDevice> {
         Self::open(adapter, device, false)
     }
 
     /// Attempts to open frontend device in read-write mode
     #[inline]
-    pub fn open_rw(adapter: u32, device: u32) -> Result<FeDevice>
-    {
+    pub fn open_rw(adapter: u32, device: u32) -> Result<FeDevice> {
         Self::open(adapter, device, true)
     }
 
@@ -265,10 +253,7 @@ impl FeDevice {
                     }
                 }
                 DTV_STREAM_ID => {
-                    ensure!(
-                        self.caps & FE_CAN_MULTISTREAM != 0,
-                        "FE: no multistream"
-                    );
+                    ensure!(self.caps & FE_CAN_MULTISTREAM != 0, "FE: no multistream");
                 }
                 _ => {}
             }
@@ -279,7 +264,8 @@ impl FeDevice {
 
     /// Sets properties on frontend device
     pub fn set_properties(&self, cmdseq: &[DtvProperty]) -> Result<()> {
-        self.check_properties(cmdseq).context("FE: property check")?;
+        self.check_properties(cmdseq)
+            .context("FE: property check")?;
 
         #[repr(C)]
         pub struct DtvProperties {
@@ -293,10 +279,14 @@ impl FeDevice {
         };
 
         // FE_SET_PROPERTY
-        ioctl_write_ptr!(#[inline] ioctl_call, b'o', 82, DtvProperties);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &cmd as *const _)
-        }.context("FE: set properties")?;
+        ioctl_write_ptr!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            82,
+            DtvProperties
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &cmd as *const _) }.context("FE: set properties")?;
 
         Ok(())
     }
@@ -315,10 +305,15 @@ impl FeDevice {
         };
 
         // FE_GET_PROPERTY
-        ioctl_read!(#[inline] ioctl_call, b'o', 83, DtvProperties);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut cmd as *mut _)
-        }.context("FE: get properties")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            83,
+            DtvProperties
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut cmd as *mut _) }
+            .context("FE: get properties")?;
 
         Ok(())
     }
@@ -326,10 +321,14 @@ impl FeDevice {
     /// Returns a frontend events if available
     pub fn get_event(&self, event: &mut FeEvent) -> Result<()> {
         // FE_GET_EVENT
-        ioctl_read!(#[inline] ioctl_call, b'o', 78, FeEvent);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), event as *mut _)
-        }.context("FE: get event")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            78,
+            FeEvent
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), event as *mut _) }.context("FE: get event")?;
 
         Ok(())
     }
@@ -347,10 +346,15 @@ impl FeDevice {
         let mut result: u32 = FE_NONE;
 
         // FE_READ_STATUS
-        ioctl_read!(#[inline] ioctl_call, b'o', 69, u32);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut result as *mut _)
-        }.context("FE: read status")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            69,
+            u32
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut result as *mut _) }
+            .context("FE: read status")?;
 
         Ok(result)
     }
@@ -360,10 +364,15 @@ impl FeDevice {
         let mut result: u16 = 0;
 
         // FE_READ_SIGNAL_STRENGTH
-        ioctl_read!(#[inline] ioctl_call, b'o', 71, u16);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut result as *mut _)
-        }.context("FE: read signal strength")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            71,
+            u16
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut result as *mut _) }
+            .context("FE: read signal strength")?;
 
         Ok(result)
     }
@@ -373,10 +382,14 @@ impl FeDevice {
         let mut result: u16 = 0;
 
         // FE_READ_SNR
-        ioctl_read!(#[inline] ioctl_call, b'o', 72, u16);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut result as *mut _)
-        }.context("FE: read snr")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            72,
+            u16
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut result as *mut _) }.context("FE: read snr")?;
 
         Ok(result)
     }
@@ -386,10 +399,14 @@ impl FeDevice {
         let mut result: u32 = 0;
 
         // FE_READ_BER
-        ioctl_read!(#[inline] ioctl_call, b'o', 70, u32);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut result as *mut _)
-        }.context("FE: read ber")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            70,
+            u32
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut result as *mut _) }.context("FE: read ber")?;
 
         Ok(result)
     }
@@ -399,10 +416,15 @@ impl FeDevice {
         let mut result: u32 = 0;
 
         // FE_READ_UNCORRECTED_BLOCKS
-        ioctl_read!(#[inline] ioctl_call, b'o', 73, u32);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &mut result as *mut _)
-        }.context("FE: read uncorrected blocks")?;
+        ioctl_read!(
+            #[inline]
+            ioctl_call,
+            b'o',
+            73,
+            u32
+        );
+        unsafe { ioctl_call(self.as_raw_fd(), &mut result as *mut _) }
+            .context("FE: read uncorrected blocks")?;
 
         Ok(result)
     }
@@ -415,11 +437,13 @@ impl FeDevice {
     /// - SEC_TONE_OFF - turn 22kHz off
     pub fn set_tone(&self, value: u32) -> Result<()> {
         // FE_SET_TONE
-        ioctl_write_int_bad!(#[inline] ioctl_call, request_code_none!(b'o', 66));
+        ioctl_write_int_bad!(
+            #[inline]
+            ioctl_call,
+            request_code_none!(b'o', 66)
+        );
 
-        unsafe {
-            ioctl_call(self.as_raw_fd(), value as _)
-        }.context("FE: set tone")?;
+        unsafe { ioctl_call(self.as_raw_fd(), value as _) }.context("FE: set tone")?;
 
         Ok(())
     }
@@ -444,11 +468,13 @@ impl FeDevice {
     ///   to use same LNB with several receivers.
     pub fn set_voltage(&self, value: u32) -> Result<()> {
         // FE_SET_VOLTAGE
-        ioctl_write_int_bad!(#[inline] ioctl_call, request_code_none!(b'o', 67));
+        ioctl_write_int_bad!(
+            #[inline]
+            ioctl_call,
+            request_code_none!(b'o', 67)
+        );
 
-        unsafe {
-            ioctl_call(self.as_raw_fd(), value as _)
-        }.context("FE: set voltage")?;
+        unsafe { ioctl_call(self.as_raw_fd(), value as _) }.context("FE: set voltage")?;
 
         Ok(())
     }
@@ -475,14 +501,13 @@ impl FeDevice {
         let mut cmd = DiseqcMasterCmd::default();
         debug_assert!(msg.len() <= cmd.msg.len());
 
-        cmd.msg[0 .. msg.len()].copy_from_slice(msg);
+        cmd.msg[0..msg.len()].copy_from_slice(msg);
         cmd.len = msg.len() as u8;
 
         // FE_DISEQC_SEND_MASTER_CMD
         ioctl_write_ptr!(ioctl_call, b'o', 63, DiseqcMasterCmd);
-        unsafe {
-            ioctl_call(self.as_raw_fd(), &cmd as *const _)
-        }.context("FE: diseqc master cmd")?;
+        unsafe { ioctl_call(self.as_raw_fd(), &cmd as *const _) }
+            .context("FE: diseqc master cmd")?;
 
         Ok(())
     }

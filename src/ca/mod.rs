@@ -1,43 +1,25 @@
-mod asn1;
-mod tpdu;
-mod spdu;
 mod apdu;
+mod asn1;
+mod spdu;
 pub mod sys;
-
+mod tpdu;
 
 use {
+    anyhow::{Context, Result},
+    nix::{ioctl_none, ioctl_read},
     std::{
-        fs::{
-            File,
-            OpenOptions,
-        },
+        fs::{File, OpenOptions},
         os::unix::{
             fs::OpenOptionsExt,
-            io::{
-                AsRawFd,
-                RawFd,
-            },
+            io::{AsRawFd, RawFd},
         },
-        time::Duration,
         thread,
+        time::Duration,
     },
-
-    anyhow::{
-        Result,
-        Context,
-    },
-
-    nix::{
-        ioctl_none,
-        ioctl_read,
-    },
-
     sys::*,
 };
 
-
 const CA_DELAY: Duration = Duration::from_millis(100);
-
 
 #[derive(Debug)]
 pub struct CaDevice {
@@ -48,22 +30,25 @@ pub struct CaDevice {
     slot: CaSlotInfo,
 }
 
-
 impl AsRawFd for CaDevice {
     #[inline]
-    fn as_raw_fd(&self) -> RawFd { self.file.as_raw_fd() }
+    fn as_raw_fd(&self) -> RawFd {
+        self.file.as_raw_fd()
+    }
 }
-
 
 impl CaDevice {
     /// Sends reset command to CA device
     #[inline]
     pub fn reset(&mut self) -> Result<()> {
         // CA_RESET
-        ioctl_none!(#[inline] ca_reset, b'o', 128);
-        unsafe {
-            ca_reset(self.as_raw_fd())
-        }.context("CA: failed to reset")?;
+        ioctl_none!(
+            #[inline]
+            ca_reset,
+            b'o',
+            128
+        );
+        unsafe { ca_reset(self.as_raw_fd()) }.context("CA: failed to reset")?;
 
         Ok(())
     }
@@ -72,10 +57,15 @@ impl CaDevice {
     #[inline]
     pub fn get_caps(&self, caps: &mut CaCaps) -> Result<()> {
         // CA_GET_CAP
-        ioctl_read!(#[inline] ca_get_cap, b'o', 129, CaCaps);
-        unsafe {
-            ca_get_cap(self.as_raw_fd(), caps as *mut _)
-        }.context("CA: failed to get caps")?;
+        ioctl_read!(
+            #[inline]
+            ca_get_cap,
+            b'o',
+            129,
+            CaCaps
+        );
+        unsafe { ca_get_cap(self.as_raw_fd(), caps as *mut _) }
+            .context("CA: failed to get caps")?;
 
         Ok(())
     }
@@ -84,10 +74,15 @@ impl CaDevice {
     #[inline]
     pub fn get_slot_info(&mut self) -> Result<()> {
         // CA_GET_SLOT_INFO
-        ioctl_read!(#[inline] ca_get_slot_info, b'o', 130, CaSlotInfo);
-        unsafe {
-            ca_get_slot_info(self.as_raw_fd(), &mut self.slot as *mut _)
-        }.context("CA: failed to get slot info")?;
+        ioctl_read!(
+            #[inline]
+            ca_get_slot_info,
+            b'o',
+            130,
+            CaSlotInfo
+        );
+        unsafe { ca_get_slot_info(self.as_raw_fd(), &mut self.slot as *mut _) }
+            .context("CA: failed to get slot info")?;
 
         Ok(())
     }
@@ -116,7 +111,7 @@ impl CaDevice {
 
         let mut caps = CaCaps::default();
 
-        for _ in 0 .. 5 {
+        for _ in 0..5 {
             ca.get_caps(&mut caps)?;
 
             if caps.slot_num != 0 {
@@ -153,7 +148,7 @@ impl CaDevice {
                 if flags == CA_CI_MODULE_READY {
                     // TODO: de-init
                 }
-                return Ok(())
+                return Ok(());
             }
             CA_CI_MODULE_READY => {
                 if flags != CA_CI_MODULE_READY {
